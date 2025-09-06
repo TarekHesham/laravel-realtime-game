@@ -6,91 +6,120 @@ use App\Events\GameMove;
 use App\Events\GameReset;
 use App\Events\GameState;
 use App\Events\GameWin;
+use App\Models\Room;
+use App\Models\RoomPlayer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class GameController extends Controller
 {
-    private const CACHE_TTL = 3600;
-    private const BOARD_SIZE = 3;
-
-    public function getSymbol()
+    public function createRoom(Request $request)
     {
-        $chosenSymbols = cache()->get('chosen_symbols', []);
-        $currentTurn = cache()->get('currentTurn', 'X');
-        $gameState = cache()->get('game_state', 'waiting'); // waiting, playing, finished
-        $winner = cache()->get('winner', null);
-        $isDraw = cache()->get('isDraw', false);
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:20'
+        ]);
 
-        if (session()->has('symbol')) {
-            $playerSymbol = session('symbol');
-            $chosenSymbols = cache()->get('chosen_symbols', []);
-
-            if (!in_array($playerSymbol, $chosenSymbols)) {
-                $chosenSymbols[] = $playerSymbol;
-                cache()->put('chosen_symbols', $chosenSymbols, now()->addSeconds(self::CACHE_TTL));
-
-                if (count($chosenSymbols) === 2) {
-                    cache()->put('game_state', 'playing', now()->addSeconds(self::CACHE_TTL));
-                }
-            }
-
-            $board = cache()->get('board', array_fill(0, 3, array_fill(0, 3, null)));
-
-
-            return response()->json([
-                'symbol' => $playerSymbol,
-                'choose' => false,
-                'currentTurn' => cache()->get('currentTurn', 'X'),
-                'gameState' => cache()->get('game_state', 'waiting'),
-                'board' => $board,
-                'spectator' => cache()->get('spectator', false),
-                'isDraw' => $isDraw,
-                'winner' => $winner
-            ]);
+        if ($validator->fails()) {
+            return response()->json(['error' => 'الاسم مطلوب'], 400);
         }
 
-        if (empty($chosenSymbols)) {
-            return response()->json([
-                'symbol' => null,
-                'choose' => true,
-                'currentTurn' => $currentTurn,
-                'gameState' => $gameState,
-                'board' => cache()->get('board', array_fill(0, 3, array_fill(0, 3, null)))
-            ]);
-        }
+        $room = Room::create([
+            'code' => Room::generateUniqueCode(),
+            'board' => array_fill(0, 3, array_fill(0, 3, null)),
+            'status' => 'waiting',
+            'current_turn' => 'X'
+        ]);
 
-        if (count($chosenSymbols) === 1) {
-            $availableSymbol = in_array('X', $chosenSymbols) ? 'O' : 'X';
-            session(['symbol' => $availableSymbol]);
-            cache()->put('chosen_symbols', array_merge($chosenSymbols, [$availableSymbol]), now()->addSeconds(self::CACHE_TTL));
-
-            cache()->put('game_state', 'playing', now()->addSeconds(self::CACHE_TTL));
-
-            $this->getGameState();
-
-            return response()->json([
-                'symbol' => $availableSymbol,
-                'choose' => false,
-                'currentTurn' => $currentTurn,
-                'gameState' => 'playing',
-                'board' => cache()->get('board', array_fill(0, 3, array_fill(0, 3, null)))
-            ]);
-        }
+        RoomPlayer::create([
+            'room_id' => $room->id,
+            'session_id' => session()->getId(),
+            'name' => $request->name,
+            'is_spectator' => false
+        ]);
 
         return response()->json([
-            'symbol' => null,
-            'choose' => false,
-            'currentTurn' => $currentTurn,
-            'gameState' => $gameState,
-            'board' => cache()->get('board', array_fill(0, 3, array_fill(0, 3, null))),
-            'spectator' => true,
-            'isDraw' => $isDraw,
-            'winner' => $winner
+            'room_code' => $room->code,
+            'redirect_url' => '/room?join=' . $room->code
         ]);
     }
 
-    public function setSymbol(Request $request)
+    public function joinRoom(Request $request, $roomCode)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:20'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => 'الاسم مطلوب'], 400);
+        }
+
+        $room = Room::where('code', $roomCode)->first();
+        if (!$room) {
+            return response()->json(['error' => 'الغرفة غير موجودة'], 404);
+        }
+
+        $existingPlayer = $room->getPlayerBySession(session()->getId());
+        if ($existingPlayer) {
+            return response()->json(['message' => 'انت موجود بالفعل في الغرفة']);
+        }
+
+        $canJoinAsPlayer = $room->canJoinAsPlayer();
+
+        RoomPlayer::create([
+            'room_id' => $room->id,
+            'session_id' => session()->getId(),
+            'name' => $request->name,
+            'is_spectator' => !$canJoinAsPlayer
+        ]);
+
+        return response()->json(['message' => 'تم الانضمام بنجاح']);
+    }
+
+    public function getGameState($roomCode)
+    {
+        $room = Room::where('code', $roomCode)->with('players')->first();
+        if (!$room) {
+            return response()->json(['error' => 'الغرفة غير موجودة'], 404);
+        }
+
+        $player = $room->getPlayerBySession(session()->getId());
+        if ($player) {
+            $player->update(['last_active' => now()]);
+        }
+
+        if ($room->hasDisconnectedPlayers()) {
+            $room->update(['status' => 'closed']);
+
+            $room->players()->delete();
+
+            broadcast(new GameState($room->code, 'closed', null, false, null));
+
+            return response()->json(['error' => 'تم إغلاق الغرفة بسبب خروج لاعب'], 410);
+        }
+
+        $activePlayers = $room->activePlayers()->get();
+
+        return response()->json([
+            'room_code' => $room->code,
+            'board' => $room->board,
+            'status' => $room->status,
+            'current_turn' => $room->current_turn,
+            'winner' => $room->winner,
+            'is_draw' => $room->is_draw,
+            'player' => $player,
+            'players' => $activePlayers->map(function ($p) {
+                return [
+                    'name' => $p->name,
+                    'symbol' => $p->symbol,
+                    'score' => $p->score,
+                ];
+            }),
+            'can_choose_symbol' => $player && !$player->is_spectator && !$player->symbol,
+            'available_symbols' => $this->getAvailableSymbols($room)
+        ]);
+    }
+
+    public function setSymbol(Request $request, $roomCode)
     {
         $validator = Validator::make($request->all(), [
             'symbol' => 'required|in:X,O'
@@ -100,37 +129,38 @@ class GameController extends Controller
             return response()->json(['error' => 'رمز غير صحيح'], 400);
         }
 
-        $symbol = $request->symbol;
-        $chosenSymbols = cache()->get('chosen_symbols', []);
+        $room = Room::where('code', $roomCode)->first();
+        if (!$room) {
+            return response()->json(['error' => 'الغرفة غير موجودة'], 404);
+        }
 
-        if (in_array($symbol, $chosenSymbols)) {
+        $player = $room->getPlayerBySession(session()->getId());
+        if (!$player || $player->is_spectator) {
+            return response()->json(['error' => 'غير مسموح لك اختيار رمز'], 400);
+        }
+
+        if ($player->symbol) {
+            return response()->json(['error' => 'لديك رمز بالفعل'], 400);
+        }
+
+        $symbolTaken = $room->activePlayers()->where('symbol', $request->symbol)->exists();
+        if ($symbolTaken) {
             return response()->json(['error' => 'الرمز محجوز بالفعل'], 400);
         }
 
-        if (count($chosenSymbols) >= 2) {
-            return response()->json(['error' => 'اللعبة ممتلئة'], 400);
+        $player->update(['symbol' => $request->symbol]);
+
+        // Check if we can start the game
+        $playersWithSymbols = $room->activePlayers()->whereNotNull('symbol')->count();
+        if ($playersWithSymbols === 2) {
+            $room->update(['status' => 'playing']);
+            broadcast(new GameState($room->code, 'playing', null, false, $room->current_turn));
         }
 
-        session(['symbol' => $symbol]);
-        $chosenSymbols[] = $symbol;
-        cache()->put('chosen_symbols', $chosenSymbols, now()->addSeconds(self::CACHE_TTL));
-
-        if (count($chosenSymbols) === 1) {
-            cache()->put('board', array_fill(0, 3, array_fill(0, 3, null)), now()->addSeconds(self::CACHE_TTL));
-            cache()->put('currentTurn', 'X', now()->addSeconds(self::CACHE_TTL));
-            cache()->put('game_state', 'waiting', now()->addSeconds(self::CACHE_TTL));
-        }
-
-        if (count($chosenSymbols) === 2) {
-            cache()->put('game_state', 'playing', now()->addSeconds(self::CACHE_TTL));
-            $this->getGameState();
-        }
-
-
-        return response()->json(['symbol' => $symbol, 'status' => 'success']);
+        return response()->json(['symbol' => $request->symbol]);
     }
 
-    public function move(Request $request)
+    public function makeMove(Request $request, $roomCode)
     {
         $validator = Validator::make($request->all(), [
             'x' => 'required|integer|min:0|max:2',
@@ -141,94 +171,102 @@ class GameController extends Controller
             return response()->json(['error' => 'إحداثيات غير صحيحة'], 400);
         }
 
-        $x = $request->get('x');
-        $y = $request->get('y');
-        $symbol = session('symbol', 'X');
-        $currentTurn = cache()->get('currentTurn');
-        $gameState = cache()->get('game_state', 'waiting');
-        $board = cache()->get('board', array_fill(0, 3, array_fill(0, 3, null)));
-
-        if ($gameState !== 'playing') {
-            return response()->json(['error' => 'اللعبة لم تبدأ بعد أو انتهت'], 400);
+        $room = Room::where('code', $roomCode)->first();
+        if (!$room) {
+            return response()->json(['error' => 'الغرفة غير موجودة'], 404);
         }
 
-        if (!in_array($symbol, ['X', 'O'])) {
-            return response()->json(['error' => 'رمز غير متاح'], 400);
+        $player = $room->getPlayerBySession(session()->getId());
+        if (!$player || $player->is_spectator) {
+            return response()->json(['error' => 'غير مسموح لك اللعب'], 400);
         }
 
-        if ($symbol !== $currentTurn) {
+        if ($room->status !== 'playing') {
+            return response()->json(['error' => 'اللعبة لم تبدأ بعد'], 400);
+        }
+
+        if ($player->symbol !== $room->current_turn) {
             return response()->json(['error' => 'مش دورك دلوقتي'], 400);
         }
+
+        $x = $request->get('x');
+        $y = $request->get('y');
+        $board = $room->board;
 
         if ($board[$x][$y] !== null) {
             return response()->json(['error' => 'المربع محجوز بالفعل'], 400);
         }
 
-        $board[$x][$y] = $symbol;
-        cache()->put('board', $board, now()->addSeconds(self::CACHE_TTL));
+        $board[$x][$y] = $player->symbol;
 
-        $winner = $this->checkWinner($board);
+        $winnerSymbol = $this->checkWinner($board);
         $isDraw = $this->checkDraw($board);
 
-        if ($winner || $isDraw) {
-            cache()->put('game_state', 'finished', now()->addSeconds(self::CACHE_TTL));
-            cache()->put('winner', $winner, now()->addSeconds(self::CACHE_TTL));
-            cache()->put('isDraw', $isDraw, now()->addSeconds(self::CACHE_TTL));
+        if ($winnerSymbol || $isDraw) {
+            $winnerName = null;
+            if ($winnerSymbol) {
+                $winnerPlayer = $room->activePlayers()->where('symbol', $winnerSymbol)->first();
+                $winnerName = $winnerPlayer ? $winnerPlayer->name : null;
 
-            broadcast(new GameWin($x, $y, $symbol, $winner, $isDraw, $board));
+                if ($winnerPlayer) {
+                    $winnerPlayer->increment('score');
+                }
+            }
 
-            return response()->json([
+            $room->update([
+                'board' => $board,
                 'status' => 'finished',
-                'symbol' => $symbol,
-                'winner' => $winner,
-                'isDraw' => $isDraw,
-                'board' => $board
+                'winner' => $winnerName,
+                'is_draw' => $isDraw
             ]);
+
+            broadcast(new GameWin($room->code, $x, $y, $player->symbol, $winnerName, $isDraw, $board));
+        } else {
+            $nextTurn = $player->symbol === 'X' ? 'O' : 'X';
+            $room->update([
+                'board' => $board,
+                'current_turn' => $nextTurn
+            ]);
+
+            broadcast(new GameMove($room->code, $x, $y, $player->symbol, $nextTurn, $board));
         }
 
-        $nextTurn = $symbol === 'X' ? 'O' : 'X';
-        cache()->put('currentTurn', $nextTurn, now()->addSeconds(self::CACHE_TTL));
-
-        broadcast(new GameMove($x, $y, $symbol, $nextTurn, $board));
-
-        return response()->json([
-            'status' => 'ok',
-            'symbol' => $symbol,
-            'nextTurn' => $nextTurn,
-            'board' => $board
-        ]);
+        return response()->json(['status' => 'ok']);
     }
 
-    public function reset()
+    public function resetGame($roomCode)
     {
-        session()->forget('symbol');
-        cache()->forget('chosen_symbols');
-        cache()->forget('currentTurn');
-        cache()->forget('board');
-        cache()->forget('game_state');
+        $room = Room::where('code', $roomCode)->first();
+        if (!$room) {
+            return response()->json(['error' => 'الغرفة غير موجودة'], 404);
+        }
 
-        broadcast(new GameReset());
+        $room->update([
+            'board' => array_fill(0, 3, array_fill(0, 3, null)),
+            'status' => 'waiting',
+            'current_turn' => 'X',
+            'winner' => null,
+            'is_draw' => false
+        ]);
+
+        // Reset players symbols
+        $room->activePlayers()->update(['symbol' => null]);
+
+        broadcast(new GameReset($room->code));
 
         return response()->json(['status' => 'reset']);
     }
 
-    private function getGameState()
+    private function getAvailableSymbols($room)
     {
-        $board = cache()->get('board', array_fill(0, 3, array_fill(0, 3, null)));
-        $winner = $this->checkWinner($board);
-        $isDraw = $this->checkDraw($board);
-
-        broadcast(new GameState(
-            cache()->get('game_state', 'waiting'),
-            $winner,
-            $isDraw,
-            cache()->get('currentTurn'),
-        ));
+        $takenSymbols = $room->activePlayers()->whereNotNull('symbol')->pluck('symbol')->toArray();
+        return array_diff(['X', 'O'], $takenSymbols);
     }
 
     private function checkWinner($board)
     {
-        for ($i = 0; $i < self::BOARD_SIZE; $i++) {
+        // Check rows
+        for ($i = 0; $i < 3; $i++) {
             if (
                 $board[$i][0] !== null &&
                 $board[$i][0] === $board[$i][1] &&
@@ -238,7 +276,8 @@ class GameController extends Controller
             }
         }
 
-        for ($j = 0; $j < self::BOARD_SIZE; $j++) {
+        // Check columns
+        for ($j = 0; $j < 3; $j++) {
             if (
                 $board[0][$j] !== null &&
                 $board[0][$j] === $board[1][$j] &&
@@ -248,6 +287,7 @@ class GameController extends Controller
             }
         }
 
+        // Check diagonals
         if (
             $board[0][0] !== null &&
             $board[0][0] === $board[1][1] &&

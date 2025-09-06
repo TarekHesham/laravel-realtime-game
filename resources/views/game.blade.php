@@ -4,133 +4,359 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>لعبة X-O الاحترافية</title>
-    <meta http-equiv="Access-Control-Allow-Origin" content="*">
-    <meta http-equiv="Access-Control-Allow-Methods" content="GET, POST, PUT, DELETE, OPTIONS">
-    <meta http-equiv="Access-Control-Allow-Headers" content="Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN">
+    <title>لعبة X-O - غرفة {{ $roomCode }}</title>
+    
+    <style>
+        .game-container {
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .game-title {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .room-code {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .invite-code {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px;
+            border-radius: 6px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            background: #28a745;
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+        }
+
+        .spectator-badge {
+            background: #6c757d;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        .symbol-selector {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .symbol-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            margin: 10px;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .symbol-btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .game-board {
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .turn-info {
+            font-size: 1.2em;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .status-success {
+            background: rgba(40, 167, 69, 0.8);
+        }
+
+        .status-info {
+            background: rgba(23, 162, 184, 0.8);
+        }
+
+        .status-waiting {
+            background: rgba(255, 193, 7, 0.8);
+            color: #000;
+        }
+
+        .winner-announcement {
+            font-size: 1.5em;
+            padding: 20px;
+            background: rgba(40, 167, 69, 0.9);
+            border-radius: 10px;
+            margin: 20px 0;
+            animation: celebration 0.5s ease-in-out;
+        }
+
+        @keyframes celebration {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .reset-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .reset-btn:hover {
+            background: #c82333;
+        }
+
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-left: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+        }
+
+        .status-message {
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .status-message.status-error {
+            background: rgba(220, 53, 69, 0.8);
+        }
+
+        .status-message.status-success {
+            background: rgba(40, 167, 69, 0.8);
+        }
+
+        @media (max-width: 600px) {
+
+            
+            .game-title {
+                font-size: 2em;
+            }
+        }
+    </style>
     
     @vite(['resources/js/app.js'])
+
 </head>
 <body>
+    <div class="room-info absolute top-[14px] right-[14px]">
+        <div class="room-code">كود الغرفة: <span id="inviteCode" class="invite-code">{{ $roomCode }}</span></div>
+        <button class="copy-btn" onclick="copyInviteCode()">نسخ الكود</button>
+        <a href="/" class="back-btn">العودة للصفحة الرئيسية</a>
+    </div>
+
     <div class="game-container">
         <h1 class="game-title">لعبة X-O</h1>
         
-        <div id="gameContent">
-            <div class="game-info">
-                <div id="playerInfo">جاري التحميل...</div>
-                <div id="turnInfo"></div>
-            </div>
-            
-            <div id="symbolSelector" class="symbol-selector" style="display: none;">
-                <h3>اختر الرمز الخاص بك:</h3>
-                <button class="symbol-btn" onclick="selectSymbol('X')">X</button>
-                <button class="symbol-btn" onclick="selectSymbol('O')">O</button>
-            </div>
-            
-            <div id="statusMessage" class="status-message" style="display: none;"></div>
-            
-            <div id="gameBoard" class="game-board"></div>
-            
-            <button class="reset-btn" onclick="resetGame()">إعادة تشغيل اللعبة</button>
+        <div id="symbolSelector" class="symbol-selector" style="display: none;">
+            <h3 style="margin-bottom: 15px;">اختر رمزك:</h3>
+            <button class="symbol-btn" onclick="selectSymbol('X')">X</button>
+            <button class="symbol-btn" onclick="selectSymbol('O')">O</button>
         </div>
+        
+        <div id="turnInfo" class="turn-info status-info">جاري التحميل...</div>
+        
+        <div id="statusMessage" class="status-message"></div>
+        
+        <div id="gameBoard" class="game-board"></div>
     </div>
 
+    <div class="players-info absolute bottom-[-25%] w-[93vw] lg:bottom-auto lg:w-auto lg:top-[14px] lg:left-[14px]">
+        <h3 style="margin-bottom: 15px;font-size: 1.5em;font-weight: bold;margin-bottom: 10px;">اللاعبين</h3>
+        <div id="playersList">جاري التحميل...</div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2"></div>
+
     <script>
+        const roomCode = '{{ $roomCode }}';
         let gameState = {
-            playerSymbol: null,
-            currentTurn: null,
             board: Array(3).fill().map(() => Array(3).fill(null)),
-            gameStatus: 'waiting',
-            isSpectator: false
+            status: 'waiting',
+            currentTurn: null,
+            player: null,
+            players: [],
+            canChooseSymbol: false,
+            availableSymbols: []
         };
 
         async function initGame() {
             try {
-                const response = await fetch('/api/game/symbol');
+                const response = await fetch(`/api/game/room/${roomCode}`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    showMessage(errorData.error || 'الغرفة غير موجودة', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                    return;
+                }
+                
                 const data = await response.json();
-                
-                gameState.playerSymbol = data.symbol;
-                gameState.currentTurn = data.currentTurn;
-                gameState.board = data.board || Array(3).fill().map(() => Array(3).fill(null));
-                gameState.gameStatus = data.gameState || 'waiting';
-                gameState.isSpectator = data.spectator || false;
-                
-                updateUI(data);
+                updateGameState(data);
                 createBoard();
-                updateBoard(gameState.board);
+                updateUI();
                 
-                if (gameState.isSpectator) {
-                    document.getElementById('playerInfo').innerHTML = 
-                        '<div class="spectator-mode">👁️ انت متفرج - اللعبة ممتلئة</div>';
-                }
-
-                if (gameState.gameStatus === 'finished') {
-                    showWinner(data.winner, data.isDraw);
-                }
             } catch (error) {
                 showMessage('خطأ في تحميل اللعبة', 'error');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
             }
         }
 
-        function updateUI(data) {
-            if (data.choose) {
-                document.getElementById('symbolSelector').style.display = 'block';
-                document.getElementById('playerInfo').textContent = 'اختر الرمز الخاص بك للبدء';
-            } else if (data.spectator) {
-                document.getElementById('playerInfo').innerHTML = 
-                    '<div class="spectator-mode">👁️ أنت متفرج - اللعبة ممتلئة</div>';
-                gameState.isSpectator = true;
-            } else if (data.symbol) {
-                document.getElementById('playerInfo').textContent = `رمزك: ${data.symbol}`;
-                document.getElementById('symbolSelector').style.display = 'none';
+        function updateGameState(data) {
+            gameState = {
+                board: data.board || Array(3).fill().map(() => Array(3).fill(null)),
+                status: data.status || 'waiting',
+                currentTurn: data.current_turn,
+                player: data.player,
+                players: data.players || [],
+                canChooseSymbol: data.can_choose_symbol || false,
+                availableSymbols: data.available_symbols || [],
+                winner: data.winner,
+                isDraw: data.is_draw
+            };
+        }
+
+        function updateUI() {
+            updatePlayersList();
+            updateTurnInfo();
+            updateBoard();
+            updateSymbolSelector();
+
+            const boardElement = document.getElementById('gameBoard');
+
+            if (gameState.status === 'waiting') {
+                boardElement.style.display = 'none';
             } else {
-                document.getElementById('playerInfo').textContent = 'انتظار لاعب آخر...';
+                boardElement.style.display = 'grid';
+            }
+
+            if (gameState.status === 'finished') {
+                showWinner(gameState.winner, gameState.isDraw);
+            }
+        }
+
+        function updatePlayersList() {
+            const playersContainer = document.getElementById('playersList');
+            
+            if (gameState.players.length === 0) {
+                playersContainer.innerHTML = '<div class="player-item">لا يوجد لاعبين نشطين</div>';
+                return;
             }
             
-            updateTurnInfo();
+            let html = '';
+            gameState.players.forEach(player => {
+                html += `
+                    <div class="player-item">
+                        <span class="player-name">${player.name}</span>
+                        <span class="player-symbol">${player.symbol || 'لم يختر بعد'}</span>
+                        <span class="player-score">🏆 ${player.score}</span>
+                    </div>
+                `;
+            });
+            
+            if (gameState.player && gameState.player.is_spectator) {
+                html += `
+                    <div class="player-item">
+                        <span class="player-name">${gameState.player.name} (أنت)</span>
+                        <span class="spectator-badge">متفرج</span>
+                    </div>
+                `;
+            }
+            
+            playersContainer.innerHTML = html;
         }
 
         function updateTurnInfo() {
             const turnElement = document.getElementById('turnInfo');
-            if (gameState.gameStatus === 'playing') {
-                if (gameState.isSpectator) {
+            
+            if (gameState.status === 'waiting') {
+                if (gameState.players.length < 2) {
+                    turnElement.textContent = 'انتظار المزيد من اللاعبين...';
+                    turnElement.className = 'turn-info status-waiting';
+                } else {
+                    turnElement.textContent = 'انتظار اختيار الرموز...';
+                    turnElement.className = 'turn-info status-info';
+                }
+            } else if (gameState.status === 'playing') {
+                if (gameState.player && gameState.player.is_spectator) {
                     turnElement.textContent = `دور: ${gameState.currentTurn}`;
-                } else if (gameState.playerSymbol === gameState.currentTurn) {
+                    turnElement.className = 'turn-info status-info';
+                } else if (gameState.player && gameState.player.symbol === gameState.currentTurn) {
                     turnElement.textContent = '🎯 دورك الآن!';
-                    turnElement.className = 'status-success';
+                    turnElement.className = 'turn-info status-success';
                 } else {
                     turnElement.textContent = '⏳ انتظار اللاعب الآخر...';
-                    turnElement.className = 'status-info';
+                    turnElement.className = 'turn-info status-info';
                 }
-            } else if (gameState.gameStatus === 'waiting') {
-                turnElement.textContent = 'انتظار بدء اللعبة...';
-                turnElement.className = 'status-info';
+            } else if (gameState.status === 'finished') {
+                turnElement.textContent = 'انتهت اللعبة';
+                turnElement.className = 'turn-info status-info';
+                setTimeout(resetGame, 5000);
             }
         }
 
-        async function selectSymbol(symbol) {
-            try {
-                const response = await fetch('/api/game/symbol', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: JSON.stringify({ symbol: symbol })
+        function updateSymbolSelector() {
+            const selector = document.getElementById('symbolSelector');
+            
+            if (gameState.canChooseSymbol && gameState.availableSymbols.length > 0) {
+                selector.style.display = 'block';
+                
+                // Update available buttons
+                const buttons = selector.querySelectorAll('.symbol-btn');
+                buttons.forEach(btn => {
+                    const symbol = btn.textContent;
+                    btn.disabled = !gameState.availableSymbols.includes(symbol);
+                    btn.style.opacity = gameState.availableSymbols.includes(symbol) ? '1' : '0.5';
                 });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    gameState.playerSymbol = symbol;
-                    document.getElementById('symbolSelector').style.display = 'none';
-                    document.getElementById('playerInfo').textContent = `رمزك: ${symbol}`;
-                    showMessage('تم اختيار الرمز بنجاح!', 'success');
-                } else {
-                    showMessage(data.error, 'error');
-                }
-            } catch (error) {
-                showMessage('خطأ في اختيار الرمز', 'error');
+            } else {
+                selector.style.display = 'none';
             }
         }
 
@@ -150,39 +376,71 @@
             }
         }
 
-        function updateBoard(board) {
+        function updateBoard() {
             const cells = document.querySelectorAll('.cell');
             
-            board.forEach((row, i) => {
+            gameState.board.forEach((row, i) => {
                 row.forEach((cell, j) => {
                     const cellElement = cells[i * 3 + j];
                     cellElement.textContent = cell || '';
                     cellElement.className = `cell ${cell || ''}`;
                     
-                    if (cell || 
-                        gameState.isSpectator || 
-                        gameState.playerSymbol !== gameState.currentTurn ||
-                        gameState.gameStatus !== 'playing') {
+                    // Check if cell should be disabled
+                    const shouldDisable = 
+                        cell || // Cell is occupied
+                        !gameState.player || // No player data
+                        gameState.player.is_spectator || // Is spectator
+                        gameState.status !== 'playing' || // Game not playing
+                        !gameState.player.symbol || // No symbol chosen
+                        gameState.player.symbol !== gameState.currentTurn; // Not player's turn
+                    
+                    if (shouldDisable) {
                         cellElement.classList.add('disabled');
-                        cellElement.style.cursor = 'not-allowed';
                     } else {
                         cellElement.classList.remove('disabled');
-                        cellElement.style.cursor = 'pointer';
                     }
                 });
             });
         }
 
+        async function selectSymbol(symbol) {
+            try {
+                const response = await fetch(`/api/game/room/${roomCode}/symbol`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ symbol: symbol })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('تم اختيار الرمز بنجاح!', 'success');
+                    // Refresh game state
+                    setTimeout(initGame, 500);
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('خطأ في اختيار الرمز', 'error');
+            }
+        }
+
         async function makeMove(x, y) {
-            if (gameState.isSpectator || 
-                gameState.playerSymbol !== gameState.currentTurn ||
-                gameState.board[x][y] !== null ||
-                gameState.gameStatus !== 'playing') {
+            // Check if move is allowed
+            if (!gameState.player || 
+                gameState.player.is_spectator || 
+                gameState.status !== 'playing' ||
+                !gameState.player.symbol ||
+                gameState.player.symbol !== gameState.currentTurn ||
+                gameState.board[x][y] !== null) {
                 return;
             }
 
             try {
-                const response = await fetch('/api/game/move', {
+                const response = await fetch(`/api/game/room/${roomCode}/move`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -203,7 +461,7 @@
 
         async function resetGame() {
             try {
-                const response = await fetch('/api/game/reset', {
+                const response = await fetch(`/api/game/room/${roomCode}/reset`, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
@@ -218,102 +476,127 @@
             }
         }
 
+        function copyInviteCode() {
+            const code = document.getElementById('inviteCode').innerText.trim();
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(code).then(() => {
+                    showMessage('تم نسخ الكود!', 'success');
+                }).catch(() => {
+                    showMessage('فشل في نسخ الكود', 'error');
+                });
+            } else {
+                const temp = document.createElement("textarea");
+                temp.value = code;
+                document.body.appendChild(temp);
+                temp.select();
+                try {
+                    document.execCommand("copy");
+                    showMessage('تم نسخ الكود!', 'success');
+                } catch (err) {
+                    showMessage('فشل في نسخ الكود', 'error');
+                }
+                document.body.removeChild(temp);
+            }
+        }
+
         function showWinner(winner, isDraw) {
-            const boardElement = document.getElementById('gameBoard');
-            let message;
+            // Remove existing winner announcement
+            const existingAnnouncement = document.querySelector('.winner-announcement');
+            if (existingAnnouncement) {
+                existingAnnouncement.remove();
+            }
             
+            let message;
             if (isDraw) {
                 message = '🤝 تعادل!';
-            } else if (winner === gameState.playerSymbol) {
+            } else if (gameState.player && winner === gameState.player.symbol) {
                 message = '🎉 مبروك! أنت الفائز!';
-            } else if (gameState.isSpectator) {
+            } else if (gameState.player && gameState.player.is_spectator) {
                 message = `🏆 الفائز: ${winner}`;
             } else {
-                message = '😔 للأسف خسرت هذه المرة';
+                message = `🏆 الفائز: ${winner}`;
             }
             
             const winnerDiv = document.createElement('div');
             winnerDiv.className = 'winner-announcement';
             winnerDiv.textContent = message;
             
+            const boardElement = document.getElementById('gameBoard');
             boardElement.parentNode.insertBefore(winnerDiv, boardElement.nextSibling);
-            
-            document.querySelectorAll('.cell').forEach(cell => {
-                cell.classList.add('disabled');
-                cell.style.cursor = 'not-allowed';
-            });
         }
 
-        function showMessage(message, type) {
-            const messageElement = document.getElementById('statusMessage');
-            messageElement.textContent = message;
-            messageElement.className = `status-message status-${type}`;
-            messageElement.style.display = 'block';
-            
+        function showMessage(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500',
+                warning: 'bg-yellow-500 text-black'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 50);
+
             setTimeout(() => {
-                messageElement.style.display = 'none';
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 500);
             }, 3000);
         }
 
-        function updatePlayerCount(count) {
-            const info = document.getElementById('playerInfo');
-            if (count === 1) {
-                info.textContent += ' - انتظار لاعب آخر...';
-            }
-        }
-
+        // Initialize when page loads
         window.onload = () => {
             initGame();
 
-            const channel = window.Echo.channel('game');
+            // Set up WebSocket listeners
+            const channel = window.Echo.channel(`game.${roomCode}`);
 
-            channel.listen('.game.move', function(data) {                
+            channel.listen('.game.move', function(data) {
                 gameState.board = data.board;
                 gameState.currentTurn = data.nextTurn;
-                updateBoard(gameState.board);
+                updateBoard();
                 updateTurnInfo();
             });
 
             channel.listen('.game.win', function(data) {
-                updateBoard(data.board);
+                gameState.board = data.board;
+                gameState.status = 'finished';
+                gameState.winner = data.winner;
+                gameState.isDraw = data.isDraw;
+                updateBoard();
+                updateTurnInfo();
                 showWinner(data.winner, data.isDraw);
+
+                setTimeout(resetGame, 5000);
             });
 
             channel.listen('.game.reset', function(data) {
-                gameState = {
-                    playerSymbol: null,
-                    currentTurn: null,
-                    board: Array(3).fill().map(() => Array(3).fill(null)),
-                    gameStatus: 'waiting',
-                    isSpectator: false
-                };
-
-                createBoard();
-                updateBoard(gameState.board);
-                document.getElementById('playerInfo').textContent = 'تمت إعادة اللعبة - اختر رمزك من جديد';
-                document.getElementById('symbolSelector').style.display = 'block';
-                document.querySelector('div.winner-announcement')?.remove();
-                updateTurnInfo();
-            });
-
-            channel.listen('.game.state', function(data) {
-                gameState.gameStatus = data.gameState;
-                gameState.currentTurn = data.currentTurn;
-                data.symbol = gameState.playerSymbol;
-
-                updateUI(data);
-                setTimeout(()=> {
-                    updateTurnInfo();
-                    updateBoard(gameState.board);
-                }, 500);
-
-                if (gameState.gameStatus === 'finished') {
-                    showWinner(data.winner, data.isDraw);
+                // Refresh the entire game state
+                initGame();
+                // Remove winner announcement
+                const winnerAnnouncement = document.querySelector('.winner-announcement');
+                if (winnerAnnouncement) {
+                    winnerAnnouncement.remove();
                 }
             });
 
-            channel.listen('.player.joined', function(data) {
-                updatePlayerCount(data.playersCount);
+            channel.listen('.game.state', function(data) {
+                if (data.status === 'closed') {
+                    showMessage('تم إغلاق الغرفة لأن أحد اللاعبين خرج.');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                    return;
+                }
+
+                // Game state changed (like when second player joins)
+                initGame();
             });
         };
     </script>

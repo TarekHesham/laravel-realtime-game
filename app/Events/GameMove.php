@@ -6,15 +6,22 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Queue\SerializesModels;
 
 class GameMove implements ShouldBroadcast
 {
-    use Dispatchable, InteractsWithSockets;
+    use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $x, $y, $symbol, $nextTurn, $board;
+    public $roomCode;
+    public $x;
+    public $y;
+    public $symbol;
+    public $nextTurn;
+    public $board;
 
-    public function __construct($x, $y, $symbol, $nextTurn, $board)
+    public function __construct($roomCode, $x, $y, $symbol, $nextTurn, $board)
     {
+        $this->roomCode = $roomCode;
         $this->x = $x;
         $this->y = $y;
         $this->symbol = $symbol;
@@ -24,7 +31,7 @@ class GameMove implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        return new Channel('game');
+        return new Channel('game.' . $this->roomCode);
     }
 
     public function broadcastAs()
