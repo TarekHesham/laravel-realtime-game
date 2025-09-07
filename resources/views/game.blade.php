@@ -220,7 +220,8 @@
             player: null,
             players: [],
             canChooseSymbol: false,
-            availableSymbols: []
+            availableSymbols: [],
+            spectators: []
         };
 
         async function initGame() {
@@ -259,7 +260,8 @@
                 canChooseSymbol: data.can_choose_symbol || false,
                 availableSymbols: data.available_symbols || [],
                 winner: data.winner,
-                isDraw: data.is_draw
+                isDraw: data.is_draw,
+                spectators: data.spectators
             };
         }
 
@@ -291,16 +293,24 @@
             }
             
             let html = '';
-            gameState.players.forEach(player => {
+            let sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
+
+            sortedPlayers.forEach(player => {
+                let rank = sortedPlayers.findIndex(p => p.name === player.name) + 1;
+
+                let medal = '';
+                if (rank === 1) medal = '🥇';
+                else if (rank === 2) medal = '🥈';
+
                 html += `
                     <div class="player-item">
                         <span class="player-name">${player.name}</span>
                         <span class="player-symbol">${player.symbol || 'لم يختر بعد'}</span>
-                        <span class="player-score">🏆 ${player.score}</span>
+                        <span class="player-score">${medal} ${player.score}</span>
                     </div>
                 `;
             });
-            
+
             if (gameState.player && gameState.player.is_spectator) {
                 html += `
                     <div class="player-item">
@@ -308,6 +318,15 @@
                         <span class="spectator-badge">متفرج</span>
                     </div>
                 `;
+            } else {
+                gameState.spectators?.forEach(spectator => {
+                    html += `
+                        <div class="player-item">
+                            <span class="player-name">${spectator.name}</span>
+                            <span class="spectator-badge">متفرج</span>
+                        </div>
+                    `;
+                });
             }
             
             playersContainer.innerHTML = html;
@@ -338,18 +357,17 @@
             } else if (gameState.status === 'finished') {
                 turnElement.textContent = 'انتهت اللعبة';
                 turnElement.className = 'turn-info status-info';
-                setTimeout(resetGame, 5000);
             }
         }
 
         function updateSymbolSelector() {
             const selector = document.getElementById('symbolSelector');
-            
-            if (gameState.canChooseSymbol && gameState.availableSymbols.length > 0) {
+            if (gameState.canChooseSymbol && gameState.availableSymbols) {
                 selector.style.display = 'block';
-                
+
                 // Update available buttons
                 const buttons = selector.querySelectorAll('.symbol-btn');
+
                 buttons.forEach(btn => {
                     const symbol = btn.textContent;
                     btn.disabled = !gameState.availableSymbols.includes(symbol);

@@ -72,6 +72,10 @@ class GameController extends Controller
             'is_spectator' => !$canJoinAsPlayer
         ]);
 
+        $room->spectators()->where('last_active', '<', now()->subSeconds(15))->delete();
+        $spectators = $room->spectators()->get();
+        broadcast(new GameState($room->code, 'playing', null, false, null, $spectators));
+
         return response()->json(['message' => 'تم الانضمام بنجاح']);
     }
 
@@ -87,12 +91,13 @@ class GameController extends Controller
             $player->update(['last_active' => now()]);
         }
 
+        $room->spectators()->where('last_active', '<', now()->subSeconds(15))->delete();
+        $spectators = $room->spectators()->get();
         if ($room->hasDisconnectedPlayers()) {
-            $room->update(['status' => 'closed']);
+            broadcast(new GameState($room->code, 'finished', null, false, null, $spectators));
 
             $room->players()->delete();
-
-            broadcast(new GameState($room->code, 'closed', null, false, null));
+            $room->delete();
 
             return response()->json(['error' => 'تم إغلاق الغرفة بسبب خروج لاعب'], 410);
         }
@@ -109,12 +114,13 @@ class GameController extends Controller
             'player' => $player,
             'players' => $activePlayers->map(function ($p) {
                 return [
-                    'name' => $p->name,
+                    'name'   => $p->name,
                     'symbol' => $p->symbol,
-                    'score' => $p->score,
+                    'score'  => $p->score,
                 ];
             }),
-            'can_choose_symbol' => $player && !$player->is_spectator && !$player->symbol,
+            'spectators' => $room->spectators()->get(),
+            'can_choose_symbol' => $player && !$player->is_spectator && $player->symbol == null,
             'available_symbols' => $this->getAvailableSymbols($room)
         ]);
     }
@@ -152,9 +158,10 @@ class GameController extends Controller
 
         // Check if we can start the game
         $playersWithSymbols = $room->activePlayers()->whereNotNull('symbol')->count();
+        $spectators = $room->spectators()->get();
         if ($playersWithSymbols === 2) {
             $room->update(['status' => 'playing']);
-            broadcast(new GameState($room->code, 'playing', null, false, $room->current_turn));
+            broadcast(new GameState($room->code, 'playing', null, false, $room->current_turn, $spectators));
         }
 
         return response()->json(['symbol' => $request->symbol]);
@@ -200,31 +207,37 @@ class GameController extends Controller
         $board[$x][$y] = $player->symbol;
 
         $winnerSymbol = $this->checkWinner($board);
-        $isDraw = $this->checkDraw($board);
 
-        if ($winnerSymbol || $isDraw) {
-            $winnerName = null;
-            if ($winnerSymbol) {
-                $winnerPlayer = $room->activePlayers()->where('symbol', $winnerSymbol)->first();
-                $winnerName = $winnerPlayer ? $winnerPlayer->name : null;
+        if ($winnerSymbol) {
+            $winnerPlayer = $room->activePlayers()->where('symbol', $winnerSymbol)->first();
+            $winnerName = $winnerPlayer ? $winnerPlayer->name : null;
 
-                if ($winnerPlayer) {
-                    $winnerPlayer->increment('score');
-                }
+            if ($winnerPlayer) {
+                $winnerPlayer->increment('score');
             }
 
             $room->update([
-                'board' => $board,
-                'status' => 'finished',
-                'winner' => $winnerName,
-                'is_draw' => $isDraw
+                'board'   => $board,
+                'status'  => 'finished',
+                'winner'  => $winnerName,
+                'is_draw' => false
             ]);
 
-            broadcast(new GameWin($room->code, $x, $y, $player->symbol, $winnerName, $isDraw, $board));
+            broadcast(new GameWin($room->code, $x, $y, $player->symbol, $winnerName, false, $board));
+        } elseif ($this->checkDraw($board)) {
+            $room->update([
+                'board'   => $board,
+                'status'  => 'finished',
+                'winner'  => null,
+                'is_draw' => true
+            ]);
+
+            broadcast(new GameWin($room->code, $x, $y, $player->symbol, null, true, $board));
         } else {
             $nextTurn = $player->symbol === 'X' ? 'O' : 'X';
+
             $room->update([
-                'board' => $board,
+                'board'        => $board,
                 'current_turn' => $nextTurn
             ]);
 
@@ -241,16 +254,21 @@ class GameController extends Controller
             return response()->json(['error' => 'الغرفة غير موجودة'], 404);
         }
 
-        $room->update([
-            'board' => array_fill(0, 3, array_fill(0, 3, null)),
-            'status' => 'waiting',
-            'current_turn' => 'X',
-            'winner' => null,
-            'is_draw' => false
-        ]);
+        if ($room->status !== 'finished') {
+            return response()->json(['error' => 'اللعبة لم تنتهي بعد'], 400);
+        }
 
-        // Reset players symbols
-        $room->activePlayers()->update(['symbol' => null]);
+        $winnerSymbol = $room->activePlayers()
+            ->where('name', $room->winner)
+            ->value('symbol') ?: 'X';
+
+        $room->update([
+            'board'        => array_fill(0, 3, array_fill(0, 3, null)),
+            'status'       => 'playing',
+            'current_turn' => $winnerSymbol,
+            'winner'       => null,
+            'is_draw'      => false
+        ]);
 
         broadcast(new GameReset($room->code));
 

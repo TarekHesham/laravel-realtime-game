@@ -17,14 +17,16 @@ class GameState implements ShouldBroadcast
     public $winner;
     public $isDraw;
     public $currentTurn;
+    public $spectators;
 
-    public function __construct($roomCode, $gameState, $winner, $isDraw, $currentTurn)
+    public function __construct($roomCode, $gameState, $winner, $isDraw, $currentTurn, $spectators)
     {
         $this->roomCode = $roomCode;
         $this->gameState = $gameState;
         $this->winner = $winner;
         $this->isDraw = $isDraw;
         $this->currentTurn = $currentTurn;
+        $this->spectators = $spectators;
     }
 
     public function broadcastOn()
