@@ -255,7 +255,7 @@ class GameController extends Controller
         }
 
         if ($room->status !== 'finished') {
-            return response()->json(['error' => 'اللعبة لم تنتهي بعد'], 400);
+            return response()->json(['message' => 'اللعبة قيد التقدم'], 200);
         }
 
         $winnerSymbol = $room->activePlayers()

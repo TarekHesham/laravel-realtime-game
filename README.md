@@ -1,61 +1,276 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# X-O Real-time Game - Laravel WebSocket Implementation
 
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+<a href="https://laravel.com" target="_blank">
+<img src="./public/screenshots/cover.png" width="1080" alt="X-O Real-time Game">
+</a>
 </p>
 
-## About Laravel
+## Overview
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+A real-time multiplayer Tic-Tac-Toe (X-O) game built with Laravel 12 and WebSocket technology using Reverb server. This application allows players to create rooms, invite others, and play the classic game with instant updates through WebSocket connections.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+-   Real-time multiplayer gameplay using WebSockets
+-   Room-based system with unique codes
+-   Player vs player matches with symbol selection
+-   Spectator mode for observing ongoing games
+-   Score tracking and player rankings
+-   Responsive design with Tailwind CSS
+-   Automatic game state management
+-   Arabic language support with RTL layout
 
-## Learning Laravel
+## Screenshots
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+<div align="center">
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+<table>
+  <tr>
+    <td><img src="./public/screenshots/1.png" width="250"/></td>
+    <td><img src="./public/screenshots/2.png" width="250"/></td>
+    <td><img src="./public/screenshots/3.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td><img src="./public/screenshots/4.png" width="250"/></td>
+    <td><img src="./public/screenshots/5.png" width="250"/></td>
+    <td><img src="./public/screenshots/6.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td><img src="./public/screenshots/7.png" width="250"/></td>
+    <td><img src="./public/screenshots/8.png" width="250"/></td>
+    <td><img src="./public/screenshots/9.png" width="250"/></td>
+  </tr>
+  <tr>
+    <td><img src="./public/screenshots/10.png" width="250"/></td>
+    <td><img src="./public/screenshots/11.png" width="250"/></td>
+    <td>
+        <video width="250" autoplay>
+            <source src="./public/screenshots/X_O.mp4" type="video/mp4">
+        </video>
+    </td>
+  </tr>
+</table>
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+</div>
 
-## Laravel Sponsors
+## Technology Stack
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+-   **Backend**: Laravel 12, PHP 8.1+
+-   **WebSocket**: Laravel Reverb
+-   **Frontend**: Blade templates, JavaScript, Tailwind CSS
+-   **Caching**: Redis or file-based (configurable)
+-   **Build Tool**: Vite
 
-### Premium Partners
+## Installation Guide
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Prerequisites
+
+-   PHP 8.1 or higher
+-   Composer
+-   Node.js and npm
+-   Redis (recommended) or alternative cache driver
+-   WebSocket compatible server environment
+
+### Step-by-Step Installation
+
+1. **Clone the repository**
+
+    ```bash
+    git clone https://github.com/TarekHesham/laravel-realtime-game
+    cd xo-game
+    ```
+
+2. **Install PHP dependencies**
+
+    ```bash
+    composer install
+    ```
+
+3. **Install JavaScript dependencies**
+
+    ```bash
+    npm install
+    ```
+
+4. **Environment configuration**
+
+    ```bash
+    cp .env.example .env
+    php artisan key:generate
+    ```
+
+5. **Configure environment variables**
+   Edit `.env` file with your database and cache settings:
+
+    ```env
+    APP_NAME=XO-Game
+    APP_ENV=local
+    APP_KEY=base64:...
+    APP_DEBUG=true
+    APP_URL=http://localhost:8000
+
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=xo_game
+    DB_USERNAME=root
+    DB_PASSWORD=
+
+    BROADCAST_CONNECTION=reverb
+    REVERB_APP_ID=your_app_id
+    REVERB_APP_KEY=your_app_key
+    REVERB_APP_SECRET=your_app_secret
+    REVERB_HOST="0.0.0.0"
+    REVERB_PORT=8080
+    REVERB_SCHEME=https
+
+    CACHE_DRIVER=file
+    SESSION_DRIVER=database
+    QUEUE_CONNECTION=sync
+    ```
+
+6. **Database setup**
+
+    ```bash
+    php artisan migrate
+    ```
+
+7. **Build frontend assets**
+
+    ```bash
+    npm run build
+    ```
+
+8. **Start the vite server**
+
+    ```bash
+    npm run dev
+    ```
+
+9. **Start the WebSocket server**
+
+    ```bash
+    php artisan reverb:start
+    ```
+
+10. **Start the development server**
+    ```bash
+    php artisan serve
+    ```
+
+## Usage
+
+1. Access the application at `http://localhost:8000`
+2. Enter your name and either create a new room or join an existing one using a room code
+3. If joining as the second player, select your symbol (X or O)
+4. Take turns making moves on the 3x3 grid
+5. The game automatically detects wins and draws
+6. After a game completes, players can reset to play again
+
+## Code Structure Analysis
+
+### Key Components
+
+1. **GameService (App\Services\GameService)**
+
+    - Handles core game logic and state management
+    - Manages board state, turns, and win conditions
+    - Uses caching for game state persistence
+
+2. **GameController (App\Http\Controllers\GameController)**
+
+    - API endpoints for game operations:
+        - Room creation and joining
+        - Move validation and processing
+        - Symbol selection
+        - Game state retrieval
+
+3. **Models**
+
+    - Room: Represents game rooms with code, board state, and status
+    - RoomPlayer: Tracks players in each room with scores and symbols
+
+4. **Events**
+
+    - GameMove: Broadcasts moves to all players
+    - GameWin: Announces game results
+    - GameReset: Handles game restarts
+    - GameState: Updates overall game state
+
+5. **Frontend Components**
+    - Home page: Room creation/joining interface
+    - Game page: Real-time game board with player list and controls
+    - JavaScript handlers for WebSocket communication
+
+### Real-time Communication Flow
+
+1. Client connects to WebSocket channel for specific room
+2. Players make moves via AJAX to Laravel backend
+3. Backend validates moves and updates game state
+4. Events are broadcast to all connected clients
+5. JavaScript listeners update UI in real-time
+
+## API Endpoints
+
+-   `POST - /api/game/create-room` - Create a new game room
+-   `POST - /api/game/join-room/{roomCode}` - Join an existing room
+-   `GET  - /api/game/room/{roomCode}` - Get current game state
+-   `POST - /api/game/room/{roomCode}/symbol` - Select player symbol
+-   `POST - /api/game/room/{roomCode}/move` - Make a move
+-   `POST - /api/game/room/{roomCode}/reset` - Reset the game
+
+## Customization
+
+### Styling
+
+Modify the Tailwind CSS classes in Blade templates or update the CSS in `<style>` tags for custom appearance.
+
+### Game Rules
+
+Adjust win conditions and board size by modifying the `GameService` methods like `checkWinner()` and `isDraw()`.
+
+### Timeouts
+
+Player inactivity timeouts can be configured by changing the timeout values in the `RoomPlayer` model and related checks.
+
+## Troubleshooting
+
+### Common Issues
+
+1. **WebSocket connection failures**
+
+    - Ensure Reverb server is running
+    - Check firewall settings for port 8080
+
+2. **Real-time updates not working**
+
+    - Verify Redis server is running if using Redis driver
+    - Check browser console for JavaScript errors
+
+3. **Game state not persisting**
+    - Confirm cache driver is properly configured
+    - Check storage permissions
+
+### Debug Mode
+
+Enable debug mode in `.env` by setting `APP_DEBUG=true` to get detailed error information.
+
+## Production Deployment
+
+1. Set `APP_DEBUG=false` in production
+2. Use `php artisan config:cache` and `php artisan route:cache`
+3. Set up process manager for Reverb server (Supervisor recommended)
+4. Configure SSL for secure WebSocket connections (wss://)
+5. Use Redis for production caching and sessions
 
 ## Contributing
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+1. Fork the repository
+2. Create a feature branch
+3. Make changes and test thoroughly
+4. Submit a pull request with description of changes
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is proprietary software. All rights reserved.

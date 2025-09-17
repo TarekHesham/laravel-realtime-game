@@ -69,7 +69,6 @@ class GameService
 
     public function checkWinner(array $board): ?string
     {
-        // فحص الصفوف
         for ($i = 0; $i < 3; $i++) {
             if (
                 $board[$i][0] !== null &&
@@ -80,7 +79,6 @@ class GameService
             }
         }
 
-        // فحص الأعمدة
         for ($j = 0; $j < 3; $j++) {
             if (
                 $board[0][$j] !== null &&
@@ -91,7 +89,6 @@ class GameService
             }
         }
 
-        // فحص الأقطار
         if (
             $board[0][0] !== null &&
             $board[0][0] === $board[1][1] &&
@@ -125,9 +122,6 @@ class GameService
 
     public function getWinningLine(array $board): ?array
     {
-        // إرجاع الخط الفائز للتمييز البصري
-
-        // فحص الصفوف
         for ($i = 0; $i < 3; $i++) {
             if (
                 $board[$i][0] !== null &&
@@ -142,7 +136,6 @@ class GameService
             }
         }
 
-        // فحص الأعمدة
         for ($j = 0; $j < 3; $j++) {
             if (
                 $board[0][$j] !== null &&
@@ -157,7 +150,6 @@ class GameService
             }
         }
 
-        // فحص القطر الرئيسي
         if (
             $board[0][0] !== null &&
             $board[0][0] === $board[1][1] &&
@@ -170,7 +162,6 @@ class GameService
             ];
         }
 
-        // فحص القطر المعاكس
         if (
             $board[0][2] !== null &&
             $board[0][2] === $board[1][1] &&
