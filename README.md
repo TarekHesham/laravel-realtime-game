@@ -45,7 +45,7 @@ A real-time multiplayer Tic-Tac-Toe (X-O) game built with Laravel 12 and WebSock
     <td><img src="./public/screenshots/10.png" width="250"/></td>
     <td><img src="./public/screenshots/11.png" width="250"/></td>
     <td>
-        <video width="250" autoplay>
+        <video width="250" autoplay controls>
             <source src="./public/screenshots/X_O.mp4" type="video/mp4">
         </video>
     </td>
